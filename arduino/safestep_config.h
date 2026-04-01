@@ -15,12 +15,13 @@
 #define WIFI_PASSWORD   "YOUR_WIFI_PASSWORD"
 
 // ============================================================
-// Firebase Configuration (update before flashing)
+// Firebase Configuration
+// DO NOT commit real values — set these before flashing only
 // ============================================================
-#define FIREBASE_API_KEY      "AIzaSyASBwIlYDcsEL_JANxcxrIr0oKEoG7AKtk"
-#define FIREBASE_DB_URL       "https://safestep-9fab3-default-rtdb.firebaseio.com"
-#define FIREBASE_USER_EMAIL   "pablofpupo23@gmail.com"
-#define FIREBASE_USER_PASSWORD "Password1234"
+#define FIREBASE_API_KEY      "YOUR_API_KEY"
+#define FIREBASE_DB_URL       "YOUR_DATABASE_URL"
+#define FIREBASE_USER_EMAIL   "your@email.com"
+#define FIREBASE_USER_PASSWORD "yourpassword"
 
 // ============================================================
 // I2C / Sensor Configuration
