@@ -26,6 +26,8 @@
 // ============================================================
 // I2C / Sensor Configuration
 // ============================================================
+#define I2C_SDA_PIN     21
+#define I2C_SCL_PIN     22
 #define TCA9548A_ADDR   0x70
 #define NUM_SENSORS     4
 

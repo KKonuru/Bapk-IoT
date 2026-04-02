@@ -298,7 +298,7 @@ void setup() {
   Serial.println("\n=== SafeStep Head Module ===");
 
   // Init I2C
-  Wire.begin(21, 22);
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
   // Init sensors
   initSensors();
