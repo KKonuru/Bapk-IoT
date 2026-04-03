@@ -183,7 +183,7 @@ bool connectToServer() {
   if (pCalibrationChar != NULL) {
     // Read initial threshold value
     if (pCalibrationChar->canRead()) {
-      std::string value = pCalibrationChar->readValue();
+      String value = pCalibrationChar->readValue();
       if (value.length() >= 2) {
         thresholdMm = (uint8_t)value[0] | ((uint8_t)value[1] << 8);
         Serial.print("Initial threshold from head: ");
