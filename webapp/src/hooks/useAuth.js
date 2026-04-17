@@ -37,6 +37,13 @@ export function useAuth() {
     await set(ref(db, `users/${credential.user.uid}`), {
       email: credential.user.email,
       calibration: DEFAULT_CALIBRATION,
+      sensors: {
+        front_mm: 0,
+        back_mm: 0,
+        left_mm: 0,
+        right_mm: 0,
+        last_updated: 0,
+      },
     });
     return credential;
   };

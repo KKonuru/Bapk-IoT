@@ -44,6 +44,9 @@ bool bleClientConnected = false;
 // Timing
 unsigned long lastSensorRead = 0;
 unsigned long lastCalibrationPoll = 0;
+unsigned long lastSensorUpload = 0;
+
+const unsigned long SENSOR_UPLOAD_INTERVAL_MS = 1000;
 
 // ============================================================
 // TCA9548A Multiplexer
@@ -254,6 +257,25 @@ void initBLE() {
 // Read Sensors and Update BLE
 // ============================================================
 
+void pushSensorsToFirebase(unsigned long nowMs) {
+  if (!firebaseReady || !Firebase.ready()) return;
+  if (nowMs - lastSensorUpload < SENSOR_UPLOAD_INTERVAL_MS) return;
+
+  lastSensorUpload = nowMs;
+
+  FirebaseJson json;
+  json.set("front_mm", distances[0]);
+  json.set("back_mm", distances[1]);
+  json.set("left_mm", distances[2]);
+  json.set("right_mm", distances[3]);
+  json.set("last_updated/.sv", "timestamp");
+
+  if (!Firebase.RTDB.updateNode(&fbdo, basePath + "sensors", &json)) {
+    Serial.print("Sensor upload failed: ");
+    Serial.println(fbdo.errorReason());
+  }
+}
+
 void readAndBroadcastSensors() {
   uint8_t bleData[8];
 
@@ -327,6 +349,7 @@ void loop() {
   if (now - lastSensorRead >= SENSOR_POLL_MS) {
     lastSensorRead = now;
     readAndBroadcastSensors();
+    pushSensorsToFirebase(now);
   }
 
   // Poll Firebase for calibration changes every 30s

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { ref, get, set } from 'firebase/database';
+import { ref, get, onValue, set } from 'firebase/database';
 import { db } from '../firebase';
 
 const SENSITIVITY_OPTIONS = [
@@ -9,6 +9,12 @@ const SENSITIVITY_OPTIONS = [
 ];
 
 const MM_PER_FOOT = 304.8;
+const SENSOR_FIELDS = [
+  { key: 'front_mm', label: 'Front', emoji: 'F' },
+  { key: 'back_mm', label: 'Back', emoji: 'B' },
+  { key: 'left_mm', label: 'Left', emoji: 'L' },
+  { key: 'right_mm', label: 'Right', emoji: 'R' },
+];
 
 function cmToFeetIn(cm) {
   const totalInches = cm / 2.54;
@@ -19,6 +25,18 @@ function cmToFeetIn(cm) {
 
 function mmToFeet(mm) {
   return (mm / MM_PER_FOOT).toFixed(1);
+}
+
+function formatDistance(mm, useFeet) {
+  if (typeof mm !== 'number') {
+    return '--';
+  }
+
+  if (useFeet) {
+    return `${mmToFeet(mm)} ft`;
+  }
+
+  return `${mm} mm`;
 }
 
 // Interactive compass that reacts to threshold and sensitivity
@@ -90,6 +108,7 @@ function CheckIcon() {
 }
 
 export default function CalibrationPage({ uid, onSignOut }) {
+  const [activeTab, setActiveTab] = useState('calibration');
   const [heightCm, setHeightCm] = useState(170);
   const [thresholdMm, setThresholdMm] = useState(800);
   const [sensitivity, setSensitivity] = useState('MEDIUM');
@@ -97,6 +116,8 @@ export default function CalibrationPage({ uid, onSignOut }) {
   const [saving, setSaving] = useState(false);
   const [saveStatus, setSaveStatus] = useState('');
   const [loadingData, setLoadingData] = useState(true);
+  const [sensorData, setSensorData] = useState({});
+  const [sensorError, setSensorError] = useState('');
 
   useEffect(() => {
     async function loadCalibration() {
@@ -115,6 +136,23 @@ export default function CalibrationPage({ uid, onSignOut }) {
       }
     }
     loadCalibration();
+  }, [uid]);
+
+  useEffect(() => {
+    const sensorRef = ref(db, `users/${uid}/sensors`);
+
+    const unsubscribe = onValue(
+      sensorRef,
+      (snapshot) => {
+        setSensorError('');
+        setSensorData(snapshot.exists() ? snapshot.val() : {});
+      },
+      (error) => {
+        setSensorError(error.message);
+      }
+    );
+
+    return unsubscribe;
   }, [uid]);
 
   const handleSave = async () => {
@@ -144,6 +182,11 @@ export default function CalibrationPage({ uid, onSignOut }) {
     ? mmToFeet(thresholdMm)
     : (thresholdMm / 1000).toFixed(2);
   const thresholdUnit = useFeet ? 'ft' : 'm';
+  const lastSensorUpdate = Number(sensorData.last_updated || 0);
+  const hasSensorData = SENSOR_FIELDS.some((field) => typeof sensorData[field.key] === 'number');
+  const sensorAgeMs = lastSensorUpdate > 0 ? Date.now() - lastSensorUpdate : null;
+  const sensorStatus =
+    lastSensorUpdate === 0 ? 'waiting' : sensorAgeMs !== null && sensorAgeMs > 15000 ? 'stale' : 'live';
 
   if (loadingData) {
     return <div className="loading">Loading calibration...</div>;
@@ -167,7 +210,29 @@ export default function CalibrationPage({ uid, onSignOut }) {
 
       <p className="page-subtitle">Configure your device</p>
 
-      <div className="calibration-form glass-card">
+      <div className="page-tabs" role="tablist" aria-label="SafeStep pages">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'calibration'}
+          className={`tab-btn ${activeTab === 'calibration' ? 'active' : ''}`}
+          onClick={() => setActiveTab('calibration')}
+        >
+          Calibration
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={activeTab === 'debug'}
+          className={`tab-btn ${activeTab === 'debug' ? 'active' : ''}`}
+          onClick={() => setActiveTab('debug')}
+        >
+          Sensor Debug
+        </button>
+      </div>
+
+      {activeTab === 'calibration' ? (
+        <div className="calibration-form glass-card">
         {/* Interactive compass reacts to threshold + sensitivity */}
         <Compass thresholdMm={thresholdMm} sensitivity={sensitivity} useFeet={useFeet} />
 
@@ -301,7 +366,43 @@ export default function CalibrationPage({ uid, onSignOut }) {
           <span className="sync-dot" />
           Device syncs every 30 seconds
         </div>
-      </div>
+        </div>
+      ) : (
+        <section className="debug-panel glass-card" role="tabpanel" aria-label="Sensor debug panel">
+          <div className="debug-heading-row">
+            <h2>Live Sensor Readings</h2>
+            <span className={`sensor-badge ${sensorStatus}`}>
+              {sensorStatus === 'live' ? 'LIVE' : sensorStatus === 'stale' ? 'STALE' : 'WAITING'}
+            </span>
+          </div>
+
+          <p className="debug-subtitle">
+            Realtime telemetry from head module TOF sensors.
+          </p>
+
+          {sensorError && (
+            <p className="status-message error" role="alert">
+              {sensorError}
+            </p>
+          )}
+
+          <div className="sensor-grid">
+            {SENSOR_FIELDS.map((field) => (
+              <article key={field.key} className="sensor-card">
+                <p className="sensor-label">{field.emoji} {field.label}</p>
+                <p className="sensor-value">{formatDistance(sensorData[field.key], useFeet)}</p>
+              </article>
+            ))}
+          </div>
+
+          <div className="sync-info debug-sync">
+            <span className="sync-dot" />
+            {hasSensorData
+              ? `Last device update tick: ${lastSensorUpdate} ms`
+              : 'Waiting for head module sensor uploads...'}
+          </div>
+        </section>
+      )}
     </div>
   );
 }
