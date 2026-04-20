@@ -14,8 +14,10 @@ const uint8_t motorPins[NUM_SENSORS] = {
   MOTOR_PIN_FRONT, MOTOR_PIN_BACK, MOTOR_PIN_LEFT, MOTOR_PIN_RIGHT
 };
 
-// Calibration
+// Calibration. thresholdMm = trigger distance (when to vibrate).
+// sensitivity = strength multiplier (how hard to vibrate). The two are independent.
 volatile uint16_t thresholdMm = DEFAULT_THRESHOLD_MM;
+volatile uint8_t sensitivity = DEFAULT_SENSITIVITY;
 
 // BLE
 BLEScan* pBLEScan = NULL;
@@ -66,15 +68,23 @@ void sensorNotifyCallback(
 ) {
   if (length < 8) return;
 
+  // Sensitivity scales the buzz strength, not the trigger distance.
+  // LOW=*0.6, MED=*1.0, HIGH=*1.4 (clamped to 255).
+  uint16_t scaleNum =
+    sensitivity == SENSITIVITY_LOW  ? 6  :
+    sensitivity == SENSITIVITY_HIGH ? 14 : 10;
+
   for (int i = 0; i < NUM_SENSORS; i++) {
     uint16_t dist = pData[i * 2] | (pData[i * 2 + 1] << 8);
 
     if (dist >= thresholdMm) {
       setMotorIntensity(i, 0);
     } else {
-      // Inverse proportional: closer = stronger vibration
-      uint8_t intensity = map(dist, 0, thresholdMm, 255, 0);
-      setMotorIntensity(i, intensity);
+      // Closer = stronger. Sensitivity scales the result.
+      uint16_t base = map(dist, 0, thresholdMm, 255, 0);
+      uint16_t scaled = base * scaleNum / 10;
+      if (scaled > 255) scaled = 255;
+      setMotorIntensity(i, (uint8_t)scaled);
     }
   }
 
@@ -87,11 +97,13 @@ void sensorNotifyCallback(
   Serial.print(pData[4] | (pData[5] << 8));
   Serial.print(" R:");
   Serial.print(pData[6] | (pData[7] << 8));
-  Serial.print(" | Threshold:");
-  Serial.println(thresholdMm);
+  Serial.print(" | Thresh:");
+  Serial.print(thresholdMm);
+  Serial.print(" Sens:");
+  Serial.println(sensitivity);
 }
 
-// Called when head module updates the calibration threshold
+// Called when head module updates the calibration. Payload layout in safestep_config.h.
 void calibrationNotifyCallback(
   BLERemoteCharacteristic* pChar,
   uint8_t* pData,
@@ -101,9 +113,14 @@ void calibrationNotifyCallback(
   if (length < 2) return;
 
   thresholdMm = pData[0] | (pData[1] << 8);
+  if (length >= CALIBRATION_PAYLOAD_LEN) {
+    sensitivity = pData[2];
+  }
+
   Serial.print("Calibration updated - Threshold: ");
   Serial.print(thresholdMm);
-  Serial.println(" mm");
+  Serial.print(" mm, Sensitivity: ");
+  Serial.println(sensitivity);
 }
 
 // ============================================================
@@ -181,14 +198,18 @@ bool connectToServer() {
   // Get calibration characteristic and register for notifications
   pCalibrationChar = pService->getCharacteristic(BLE_CALIBRATION_CHAR_UUID);
   if (pCalibrationChar != NULL) {
-    // Read initial threshold value
+    // Read initial calibration value
     if (pCalibrationChar->canRead()) {
-      std::string value = pCalibrationChar->readValue();
+      String value = pCalibrationChar->readValue();
       if (value.length() >= 2) {
         thresholdMm = (uint8_t)value[0] | ((uint8_t)value[1] << 8);
-        Serial.print("Initial threshold from head: ");
+        if (value.length() >= CALIBRATION_PAYLOAD_LEN) {
+          sensitivity = (uint8_t)value[2];
+        }
+        Serial.print("Initial calibration from head - Threshold: ");
         Serial.print(thresholdMm);
-        Serial.println(" mm");
+        Serial.print(" mm, Sensitivity: ");
+        Serial.println(sensitivity);
       }
     }
     if (pCalibrationChar->canNotify()) {

@@ -26,6 +26,8 @@
 // ============================================================
 // I2C / Sensor Configuration
 // ============================================================
+#define I2C_SDA_PIN     21
+#define I2C_SCL_PIN     22
 #define TCA9548A_ADDR   0x70
 #define NUM_SENSORS     4
 
@@ -51,14 +53,30 @@
 // ============================================================
 // Default Calibration Values
 // ============================================================
-#define DEFAULT_THRESHOLD_MM  800   // 0.8 meter (sensor max ~1.2m)
+#define DEFAULT_THRESHOLD_MM  1000  // 1.0 meter (sensor max ~1.2m). Must match webapp DEFAULT_CALIBRATION.threshold_mm in src/hooks/useAuth.js
 #define DEFAULT_HEIGHT_CM     170
+
+// Sensitivity enum sent over BLE (1 byte). Web app stores the string
+// "LOW"/"MEDIUM"/"HIGH"; the head module maps it to this enum before sending.
+#define SENSITIVITY_LOW       0
+#define SENSITIVITY_MEDIUM    1
+#define SENSITIVITY_HIGH      2
+#define DEFAULT_SENSITIVITY   SENSITIVITY_MEDIUM
+
+// Sensor reliable max (VL53L0X is rated ~2m but tails off; we clamp HIGH here).
+#define SENSOR_MAX_MM         1200
+
+// Calibration BLE characteristic payload layout (3 bytes, little-endian):
+//   [0] threshold_mm low byte
+//   [1] threshold_mm high byte
+//   [2] sensitivity enum (SENSITIVITY_LOW | _MEDIUM | _HIGH)
+#define CALIBRATION_PAYLOAD_LEN 3
 
 // ============================================================
 // Timing
 // ============================================================
 #define SENSOR_POLL_MS        100    // 10 Hz sensor reading
-#define CALIBRATION_POLL_MS   30000  // 30s Firebase calibration poll
+#define CALIBRATION_POLL_MS   10000  // 10s Firebase calibration poll (settings apply within ~10s)
 #define BLE_RECONNECT_MS      5000   // 5s BLE reconnect interval
 
 // ============================================================

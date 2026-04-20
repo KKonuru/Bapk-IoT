@@ -58,14 +58,14 @@ export default function Login({ onSignIn, onSignUp }) {
   };
 
   return (
-    <div className="login-container">
+    <main id="main" className="login-container">
       <div className="login-brand">
         <RadarLogo />
         <h1>SafeStep</h1>
         <p className="subtitle">Walk with confidence</p>
       </div>
 
-      <form onSubmit={handleSubmit} className="login-form glass-card">
+      <form onSubmit={handleSubmit} className="login-form glass-card" aria-busy={submitting}>
         <h2>{isSignUp ? 'Create Account' : 'Welcome back'}</h2>
 
         <div className="form-group">
@@ -77,7 +77,7 @@ export default function Login({ onSignIn, onSignUp }) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              aria-label="Email address"
+              autoComplete="email"
               placeholder="your@email.com"
             />
             <EmailIcon />
@@ -93,7 +93,7 @@ export default function Login({ onSignIn, onSignUp }) {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              aria-label="Password"
+              autoComplete={isSignUp ? 'new-password' : 'current-password'}
               placeholder="Enter password"
               minLength={6}
             />
@@ -118,6 +118,6 @@ export default function Login({ onSignIn, onSignUp }) {
           {isSignUp ? 'Already have an account? Sign in' : "Don't have an account? Sign up"}
         </button>
       </form>
-    </div>
+    </main>
   );
 }

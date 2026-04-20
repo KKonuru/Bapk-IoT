@@ -6,14 +6,23 @@ function App() {
   const { user, loading, signIn, signUp, signOut } = useAuth();
 
   if (loading) {
-    return <div className="loading">Loading...</div>;
+    return (
+      <div className="loading" role="status" aria-live="polite">
+        Loading...
+      </div>
+    );
   }
 
-  if (!user) {
-    return <Login onSignIn={signIn} onSignUp={signUp} />;
-  }
-
-  return <CalibrationPage uid={user.uid} onSignOut={signOut} />;
+  return (
+    <>
+      <a href="#main" className="skip-link">Skip to main content</a>
+      {!user ? (
+        <Login onSignIn={signIn} onSignUp={signUp} />
+      ) : (
+        <CalibrationPage uid={user.uid} onSignOut={signOut} />
+      )}
+    </>
+  );
 }
 
 export default App;

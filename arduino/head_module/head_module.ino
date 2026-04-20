@@ -25,6 +25,7 @@ uint16_t distances[NUM_SENSORS] = {0, 0, 0, 0};
 // Calibration
 uint16_t thresholdMm = DEFAULT_THRESHOLD_MM;
 uint16_t heightCm = DEFAULT_HEIGHT_CM;
+uint8_t sensitivity = DEFAULT_SENSITIVITY;
 unsigned long lastCalibrationUpdate = 0;
 
 // Firebase
@@ -44,6 +45,9 @@ bool bleClientConnected = false;
 // Timing
 unsigned long lastSensorRead = 0;
 unsigned long lastCalibrationPoll = 0;
+unsigned long lastSensorUpload = 0;
+
+const unsigned long SENSOR_UPLOAD_INTERVAL_MS = 1000;
 
 // ============================================================
 // TCA9548A Multiplexer
@@ -172,16 +176,28 @@ void loadCalibrationFromFirebase() {
     Serial.println("No height in Firebase, using default");
   }
 
+  if (Firebase.RTDB.getString(&fbdo, basePath + "calibration/sensitivity")) {
+    String s = fbdo.stringData();
+    if (s == "LOW")        sensitivity = SENSITIVITY_LOW;
+    else if (s == "HIGH")  sensitivity = SENSITIVITY_HIGH;
+    else                   sensitivity = SENSITIVITY_MEDIUM;
+    Serial.print("Sensitivity: ");
+    Serial.println(s);
+  } else {
+    Serial.println("No sensitivity in Firebase, using default");
+  }
+
   if (Firebase.RTDB.getInt(&fbdo, basePath + "calibration/last_updated")) {
     lastCalibrationUpdate = fbdo.intData();
   }
 
-  // Update BLE calibration characteristic
+  // Update BLE calibration characteristic (see safestep_config.h for payload layout)
   if (pCalibrationChar != NULL) {
-    uint8_t calData[2];
+    uint8_t calData[CALIBRATION_PAYLOAD_LEN];
     calData[0] = thresholdMm & 0xFF;
     calData[1] = (thresholdMm >> 8) & 0xFF;
-    pCalibrationChar->setValue(calData, 2);
+    calData[2] = sensitivity;
+    pCalibrationChar->setValue(calData, CALIBRATION_PAYLOAD_LEN);
     if (bleClientConnected) {
       pCalibrationChar->notify();
     }
@@ -226,7 +242,7 @@ void initBLE() {
   );
   pSensorChar->addDescriptor(new BLE2902());
 
-  // Calibration characteristic: 2 bytes (uint16_t threshold_mm), READ + NOTIFY
+  // Calibration characteristic: see CALIBRATION_PAYLOAD_LEN in safestep_config.h
   pCalibrationChar = pService->createCharacteristic(
     BLE_CALIBRATION_CHAR_UUID,
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
@@ -234,10 +250,11 @@ void initBLE() {
   pCalibrationChar->addDescriptor(new BLE2902());
 
   // Set initial calibration value
-  uint8_t calData[2];
+  uint8_t calData[CALIBRATION_PAYLOAD_LEN];
   calData[0] = thresholdMm & 0xFF;
   calData[1] = (thresholdMm >> 8) & 0xFF;
-  pCalibrationChar->setValue(calData, 2);
+  calData[2] = sensitivity;
+  pCalibrationChar->setValue(calData, CALIBRATION_PAYLOAD_LEN);
 
   pService->start();
 
@@ -253,6 +270,25 @@ void initBLE() {
 // ============================================================
 // Read Sensors and Update BLE
 // ============================================================
+
+void pushSensorsToFirebase(unsigned long nowMs) {
+  if (!firebaseReady || !Firebase.ready()) return;
+  if (nowMs - lastSensorUpload < SENSOR_UPLOAD_INTERVAL_MS) return;
+
+  lastSensorUpload = nowMs;
+
+  FirebaseJson json;
+  json.set("front_mm", distances[0]);
+  json.set("back_mm", distances[1]);
+  json.set("left_mm", distances[2]);
+  json.set("right_mm", distances[3]);
+  json.set("last_updated/.sv", "timestamp");
+
+  if (!Firebase.RTDB.updateNode(&fbdo, basePath + "sensors", &json)) {
+    Serial.print("Sensor upload failed: ");
+    Serial.println(fbdo.errorReason());
+  }
+}
 
 void readAndBroadcastSensors() {
   uint8_t bleData[8];
@@ -298,7 +334,7 @@ void setup() {
   Serial.println("\n=== SafeStep Head Module ===");
 
   // Init I2C
-  Wire.begin(21, 22);
+  Wire.begin(I2C_SDA_PIN, I2C_SCL_PIN);
 
   // Init sensors
   initSensors();
@@ -327,9 +363,10 @@ void loop() {
   if (now - lastSensorRead >= SENSOR_POLL_MS) {
     lastSensorRead = now;
     readAndBroadcastSensors();
+    pushSensorsToFirebase(now);
   }
 
-  // Poll Firebase for calibration changes every 30s
+  // Poll Firebase for calibration changes
   if (now - lastCalibrationPoll >= CALIBRATION_POLL_MS) {
     lastCalibrationPoll = now;
     pollCalibration();
