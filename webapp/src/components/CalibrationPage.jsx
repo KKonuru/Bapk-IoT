@@ -216,6 +216,57 @@ export default function CalibrationPage({ uid, onSignOut }) {
     .filter((field) => vibrationIntensity(sensorData[field.key], thresholdMm, sensitivity) > 0)
     .map((field) => field.label);
 
+  const handleTabsKeyDown = (event) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (event.key === 'Home') {
+      setActiveTab('calibration');
+      return;
+    }
+
+    if (event.key === 'End') {
+      setActiveTab('debug');
+      return;
+    }
+
+    setActiveTab((prev) => (prev === 'calibration' ? 'debug' : 'calibration'));
+  };
+
+  const handleUnitToggleKeyDown = (event) => {
+    if (!['ArrowLeft', 'ArrowRight'].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+    setUseFeet(event.key === 'ArrowRight');
+  };
+
+  const handleSensitivityKeyDown = (event, currentIndex) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) {
+      return;
+    }
+
+    event.preventDefault();
+
+    if (event.key === 'Home') {
+      setSensitivity(SENSITIVITY_OPTIONS[0].value);
+      return;
+    }
+
+    if (event.key === 'End') {
+      setSensitivity(SENSITIVITY_OPTIONS[SENSITIVITY_OPTIONS.length - 1].value);
+      return;
+    }
+
+    const delta = event.key === 'ArrowRight' ? 1 : -1;
+    const nextIndex = (currentIndex + delta + SENSITIVITY_OPTIONS.length) % SENSITIVITY_OPTIONS.length;
+    setSensitivity(SENSITIVITY_OPTIONS[nextIndex].value);
+  };
+
   if (loadingData) {
     return (
       <div className="loading" role="status" aria-live="polite">
@@ -242,13 +293,14 @@ export default function CalibrationPage({ uid, onSignOut }) {
 
       <p className="page-subtitle">Configure your device</p>
 
-      <div className="page-tabs" role="tablist" aria-label="SafeStep pages">
+      <div className="page-tabs" role="tablist" aria-label="SafeStep pages" onKeyDown={handleTabsKeyDown}>
         <button
           type="button"
           role="tab"
           id="tab-calibration"
           aria-selected={activeTab === 'calibration'}
           aria-controls="panel-calibration"
+          tabIndex={activeTab === 'calibration' ? 0 : -1}
           className={`tab-btn ${activeTab === 'calibration' ? 'active' : ''}`}
           onClick={() => setActiveTab('calibration')}
         >
@@ -260,6 +312,7 @@ export default function CalibrationPage({ uid, onSignOut }) {
           id="tab-debug"
           aria-selected={activeTab === 'debug'}
           aria-controls="panel-debug"
+          tabIndex={activeTab === 'debug' ? 0 : -1}
           className={`tab-btn ${activeTab === 'debug' ? 'active' : ''}`}
           onClick={() => setActiveTab('debug')}
         >
@@ -283,18 +336,29 @@ export default function CalibrationPage({ uid, onSignOut }) {
 
             <div className="unit-toggle-row">
               <span className="unit-label" id="unit-toggle-label">Display units</span>
-              <div className="unit-toggle" role="group" aria-labelledby="unit-toggle-label">
+              <div
+                className="unit-toggle"
+                role="radiogroup"
+                aria-labelledby="unit-toggle-label"
+                onKeyDown={handleUnitToggleKeyDown}
+              >
                 <button
+                  type="button"
                   className={`unit-btn ${!useFeet ? 'active' : ''}`}
                   onClick={() => setUseFeet(false)}
-                  aria-pressed={!useFeet}
+                  role="radio"
+                  aria-checked={!useFeet}
+                  tabIndex={!useFeet ? 0 : -1}
                 >
                   Metric
                 </button>
                 <button
+                  type="button"
                   className={`unit-btn ${useFeet ? 'active' : ''}`}
                   onClick={() => setUseFeet(true)}
-                  aria-pressed={useFeet}
+                  role="radio"
+                  aria-checked={useFeet}
+                  tabIndex={useFeet ? 0 : -1}
                 >
                   Imperial
                 </button>
@@ -310,17 +374,21 @@ export default function CalibrationPage({ uid, onSignOut }) {
               </p>
               <div
                 className="segmented-control"
-                role="group"
+                role="radiogroup"
                 aria-labelledby="sensitivity-label"
                 aria-describedby="sensitivity-desc"
               >
-                {SENSITIVITY_OPTIONS.map((opt) => (
+                {SENSITIVITY_OPTIONS.map((opt, index) => (
                   <button
+                    type="button"
                     key={opt.value}
                     className={`segment-btn ${sensitivity === opt.value ? 'active' : ''}`}
                     onClick={() => setSensitivity(opt.value)}
-                    aria-pressed={sensitivity === opt.value}
+                    role="radio"
+                    aria-checked={sensitivity === opt.value}
+                    tabIndex={sensitivity === opt.value ? 0 : -1}
                     aria-label={`${opt.label}: ${opt.desc}`}
+                    onKeyDown={(event) => handleSensitivityKeyDown(event, index)}
                   >
                     {opt.label}
                     <span className="segment-desc" aria-hidden="true">{opt.desc}</span>
@@ -403,7 +471,13 @@ export default function CalibrationPage({ uid, onSignOut }) {
           >
             <div className="debug-heading-row">
               <h2>Live Sensor Readings</h2>
-              <span className={`sensor-badge ${sensorStatus}`} aria-label={`Stream status: ${sensorStatus}`}>
+              <span
+                className={`sensor-badge ${sensorStatus}`}
+                aria-label={`Stream status: ${sensorStatus}`}
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
                 {sensorStatus === 'live' ? 'LIVE' : sensorStatus === 'stale' ? 'STALE' : 'WAITING'}
               </span>
             </div>
