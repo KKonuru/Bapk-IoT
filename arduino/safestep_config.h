@@ -42,7 +42,6 @@
 // ============================================================
 // GPIO pins for each vibration motor, driven via N-channel MOSFETs
 #define MOTOR_PIN_FRONT 25
-#define MOTOR_PIN_BACK  26
 #define MOTOR_PIN_LEFT  27
 #define MOTOR_PIN_RIGHT 14
 
