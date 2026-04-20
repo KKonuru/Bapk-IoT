@@ -9,9 +9,9 @@
 // Globals
 // ============================================================
 
-// Motor pins array (front, back, left, right)
+// Motor pins array (front, left, right)
 const uint8_t motorPins[NUM_SENSORS] = {
-  MOTOR_PIN_FRONT, MOTOR_PIN_BACK, MOTOR_PIN_LEFT, MOTOR_PIN_RIGHT
+  MOTOR_PIN_FRONT, MOTOR_PIN_LEFT, MOTOR_PIN_RIGHT
 };
 
 // Calibration. thresholdMm = trigger distance (when to vibrate).
@@ -66,7 +66,7 @@ void sensorNotifyCallback(
   size_t length,
   bool isNotify
 ) {
-  if (length < 8) return;
+  if (length < 6) return;
 
   // Sensitivity scales the buzz strength, not the trigger distance.
   // LOW=*0.6, MED=*1.0, HIGH=*1.4 (clamped to 255).
@@ -91,12 +91,10 @@ void sensorNotifyCallback(
   // Debug output
   Serial.print("Distances - F:");
   Serial.print(pData[0] | (pData[1] << 8));
-  Serial.print(" B:");
-  Serial.print(pData[2] | (pData[3] << 8));
   Serial.print(" L:");
-  Serial.print(pData[4] | (pData[5] << 8));
+  Serial.print(pData[2] | (pData[3] << 8));
   Serial.print(" R:");
-  Serial.print(pData[6] | (pData[7] << 8));
+  Serial.print(pData[4] | (pData[5] << 8));
   Serial.print(" | Thresh:");
   Serial.print(thresholdMm);
   Serial.print(" Sens:");
