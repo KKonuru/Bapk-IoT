@@ -18,9 +18,9 @@
 // Sensors
 VL53L0X sensors[NUM_SENSORS];
 uint8_t sensorChannels[NUM_SENSORS] = {
-  SENSOR_CH_FRONT, SENSOR_CH_BACK, SENSOR_CH_LEFT, SENSOR_CH_RIGHT
+  SENSOR_CH_FRONT, SENSOR_CH_LEFT, SENSOR_CH_RIGHT
 };
-uint16_t distances[NUM_SENSORS] = {0, 0, 0, 0};
+uint16_t distances[NUM_SENSORS] = {0, 0, 0};
 
 // Calibration
 uint16_t thresholdMm = DEFAULT_THRESHOLD_MM;
@@ -235,7 +235,7 @@ void initBLE() {
 
   BLEService* pService = pServer->createService(BLE_SERVICE_UUID);
 
-  // Sensor data characteristic: 8 bytes (4x uint16_t), READ + NOTIFY
+  // Sensor data characteristic: 6 bytes (3x uint16_t), READ + NOTIFY
   pSensorChar = pService->createCharacteristic(
     BLE_SENSOR_CHAR_UUID,
     BLECharacteristic::PROPERTY_READ | BLECharacteristic::PROPERTY_NOTIFY
@@ -279,9 +279,8 @@ void pushSensorsToFirebase(unsigned long nowMs) {
 
   FirebaseJson json;
   json.set("front_mm", distances[0]);
-  json.set("back_mm", distances[1]);
-  json.set("left_mm", distances[2]);
-  json.set("right_mm", distances[3]);
+  json.set("left_mm", distances[1]);
+  json.set("right_mm", distances[2]);
   json.set("last_updated/.sv", "timestamp");
 
   if (!Firebase.RTDB.updateNode(&fbdo, basePath + "sensors", &json)) {
@@ -291,7 +290,7 @@ void pushSensorsToFirebase(unsigned long nowMs) {
 }
 
 void readAndBroadcastSensors() {
-  uint8_t bleData[8];
+  uint8_t bleData[6];
 
   for (int i = 0; i < NUM_SENSORS; i++) {
     tcaSelect(sensorChannels[i]);
@@ -309,7 +308,7 @@ void readAndBroadcastSensors() {
   }
 
   // Update BLE characteristic and notify
-  pSensorChar->setValue(bleData, 8);
+  pSensorChar->setValue(bleData, 6);
   if (bleClientConnected) {
     pSensorChar->notify();
   }
@@ -317,12 +316,10 @@ void readAndBroadcastSensors() {
   // Debug output
   Serial.print("F:");
   Serial.print(distances[0]);
-  Serial.print(" B:");
-  Serial.print(distances[1]);
   Serial.print(" L:");
-  Serial.print(distances[2]);
+  Serial.print(distances[1]);
   Serial.print(" R:");
-  Serial.println(distances[3]);
+  Serial.println(distances[2]);
 }
 
 // ============================================================
