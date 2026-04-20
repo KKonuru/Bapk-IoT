@@ -29,14 +29,13 @@
 #define I2C_SDA_PIN     21
 #define I2C_SCL_PIN     22
 #define TCA9548A_ADDR   0x70
-#define NUM_SENSORS     4
+#define NUM_SENSORS     3
 
 // TCA9548A channels for each sensor direction
-// Channel 0 = Front, 1 = Back, 2 = Left, 3 = Right
+// Channel 0 = Front, 1 = Left, 2 = Right
 #define SENSOR_CH_FRONT 0
-#define SENSOR_CH_BACK  1
-#define SENSOR_CH_LEFT  2
-#define SENSOR_CH_RIGHT 3
+#define SENSOR_CH_LEFT  1
+#define SENSOR_CH_RIGHT 2
 
 // ============================================================
 // Motor Pin Definitions (Chest Module)
