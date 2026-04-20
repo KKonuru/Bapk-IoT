@@ -443,19 +443,21 @@ export default function CalibrationPage({ uid, onSignOut }) {
               </span>
             </button>
 
+
             <div role="status" aria-live="polite" className="status-region">
               {saveStatus === 'saved' && (
-                <p className="status-message success">
+                <span className="status-message success">
                   <CheckIcon />
                   Settings saved. Your device will sync automatically.
-                </p>
+                </span>
               )}
+              {saveStatus === 'error' && (
+                <span className="status-message error">
+                  Failed to save. Please try again.
+                </span>
+              )}
+              {saveStatus === '' && <span className="status-message" style={{display:'none'}} aria-hidden="true">No status</span>}
             </div>
-            {saveStatus === 'error' && (
-              <p className="status-message error" role="alert">
-                Failed to save. Please try again.
-              </p>
-            )}
 
             <div className="sync-info">
               <span className="sync-dot" aria-hidden="true" />
