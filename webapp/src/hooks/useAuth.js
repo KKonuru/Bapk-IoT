@@ -9,7 +9,6 @@ import { ref, set } from 'firebase/database';
 import { auth, db } from '../firebase';
 
 const DEFAULT_CALIBRATION = {
-  height_cm: 170,
   threshold_mm: 1000,
   sensitivity: 'MEDIUM',
   last_updated: Date.now(),
@@ -39,7 +38,6 @@ export function useAuth() {
       calibration: DEFAULT_CALIBRATION,
       sensors: {
         front_mm: 0,
-        back_mm: 0,
         left_mm: 0,
         right_mm: 0,
         last_updated: 0,

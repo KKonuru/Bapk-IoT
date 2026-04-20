@@ -11,7 +11,6 @@ const SENSITIVITY_OPTIONS = [
 const MM_PER_FOOT = 304.8;
 const SENSOR_FIELDS = [
   { key: 'front_mm', label: 'Front', emoji: 'F' },
-  { key: 'back_mm', label: 'Back', emoji: 'B' },
   { key: 'left_mm', label: 'Left', emoji: 'L' },
   { key: 'right_mm', label: 'Right', emoji: 'R' },
 ];
@@ -22,8 +21,6 @@ const SENSOR_FIELDS = [
 const SENSITIVITY_SCALE = { LOW: 0.6, MEDIUM: 1.0, HIGH: 1.4 };
 const THRESHOLD_MIN_MM = 200;
 const THRESHOLD_MAX_MM = 1200;
-const HEIGHT_MIN_CM = 100;
-const HEIGHT_MAX_CM = 220;
 
 function clamp(v, lo, hi) {
   return Math.min(hi, Math.max(lo, v));
@@ -37,13 +34,6 @@ function vibrationIntensity(distMm, thresholdMm, sensitivity) {
   return Math.min(255, Math.round(base * scale));
 }
 
-function cmToFeetIn(cm) {
-  const totalInches = cm / 2.54;
-  const feet = Math.floor(totalInches / 12);
-  const inches = Math.round(totalInches % 12);
-  return `${feet}'${inches}"`;
-}
-
 function mmToFeet(mm) {
   return (mm / MM_PER_FOOT).toFixed(1);
 }
@@ -53,14 +43,6 @@ function formatDistance(mm, useFeet) {
   if (useFeet) return `${mmToFeet(mm)} ft`;
   if (mm >= 9999) return 'out of range';
   return `${mm} mm`;
-}
-
-function heightSpoken(cm, useFeet) {
-  if (!useFeet) return `${cm} centimeters`;
-  const totalInches = cm / 2.54;
-  const feet = Math.floor(totalInches / 12);
-  const inches = Math.round(totalInches % 12);
-  return `${feet} feet ${inches} inches`;
 }
 
 function thresholdSpoken(mm, useFeet) {
@@ -93,7 +75,6 @@ function Compass({ thresholdMm, sensitivity, useFeet }) {
       <div className="compass-line horizontal" />
       <div className="compass-center" />
       <span className="compass-label front">Front</span>
-      <span className="compass-label back">Back</span>
       <span className="compass-label left">Left</span>
       <span className="compass-label right">Right</span>
       <span className="compass-distance">{displayDist}</span>
@@ -156,7 +137,6 @@ function SensorCard({ field, distMm, thresholdMm, sensitivity, useFeet }) {
 
 export default function CalibrationPage({ uid, onSignOut }) {
   const [activeTab, setActiveTab] = useState('calibration');
-  const [heightCm, setHeightCm] = useState(170);
   const [thresholdMm, setThresholdMm] = useState(1000);
   const [sensitivity, setSensitivity] = useState('MEDIUM');
   const [useFeet, setUseFeet] = useState(false);
@@ -172,7 +152,6 @@ export default function CalibrationPage({ uid, onSignOut }) {
         const snapshot = await get(ref(db, `users/${uid}/calibration`));
         if (snapshot.exists()) {
           const data = snapshot.val();
-          if (data.height_cm) setHeightCm(clamp(data.height_cm, HEIGHT_MIN_CM, HEIGHT_MAX_CM));
           if (data.threshold_mm) setThresholdMm(clamp(data.threshold_mm, THRESHOLD_MIN_MM, THRESHOLD_MAX_MM));
           if (data.sensitivity) setSensitivity(data.sensitivity);
         }
@@ -208,7 +187,6 @@ export default function CalibrationPage({ uid, onSignOut }) {
 
     try {
       await set(ref(db, `users/${uid}/calibration`), {
-        height_cm: heightCm,
         threshold_mm: thresholdMm,
         sensitivity,
         last_updated: Date.now(),
@@ -223,8 +201,6 @@ export default function CalibrationPage({ uid, onSignOut }) {
     }
   };
 
-  const heightDisplay = useFeet ? cmToFeetIn(heightCm) : `${heightCm}`;
-  const heightUnit = useFeet ? '' : 'cm';
   const thresholdDisplay = useFeet
     ? mmToFeet(thresholdMm)
     : (thresholdMm / 1000).toFixed(2);
@@ -302,7 +278,7 @@ export default function CalibrationPage({ uid, onSignOut }) {
             <Compass thresholdMm={thresholdMm} sensitivity={sensitivity} useFeet={useFeet} />
             <p className="visually-hidden" aria-live="polite">
               Detection zone visualization. Alert range {thresholdSpoken(thresholdMm, useFeet)} in
-              all four directions. Sensitivity {sensitivityLabel(sensitivity).toLowerCase()}.
+              front, left, and right directions. Sensitivity {sensitivityLabel(sensitivity).toLowerCase()}.
             </p>
 
             <div className="unit-toggle-row">
@@ -326,34 +302,6 @@ export default function CalibrationPage({ uid, onSignOut }) {
             </div>
 
             <hr className="section-divider" />
-
-            <div className="slider-group">
-              <div className="slider-header">
-                <label htmlFor="height">Your Height</label>
-                <div className="slider-value" aria-live="polite" aria-atomic="true">
-                  {heightDisplay}
-                  {heightUnit && <span className="slider-unit">{heightUnit}</span>}
-                </div>
-              </div>
-              <input
-                id="height"
-                type="range"
-                min={100}
-                max={220}
-                step={1}
-                value={heightCm}
-                onChange={(e) => setHeightCm(Number(e.target.value))}
-                aria-valuetext={heightSpoken(heightCm, useFeet)}
-                aria-describedby="height-range-labels"
-                style={{
-                  background: `linear-gradient(to right, var(--accent) 0%, var(--accent) ${((heightCm - 100) / 120) * 100}%, rgba(124,163,206,0.1) ${((heightCm - 100) / 120) * 100}%, rgba(124,163,206,0.1) 100%)`
-                }}
-              />
-              <div className="range-labels" id="height-range-labels">
-                <span>{useFeet ? "3'3\"" : '100 cm'}</span>
-                <span>{useFeet ? "7'3\"" : '220 cm'}</span>
-              </div>
-            </div>
 
             <div className="sensitivity-group">
               <label id="sensitivity-label">Sensitivity</label>
